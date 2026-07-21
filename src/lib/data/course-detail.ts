@@ -20,7 +20,9 @@ export async function getCourseDetail(slug: string) {
       },
       quizzes: {
         orderBy: (q, { asc }) => asc(q.position),
-        with: { questions: true },
+        with: {
+          questions: { orderBy: (qq, { asc }) => asc(qq.position) },
+        },
       },
       enrollments: { columns: { id: true } },
     },
