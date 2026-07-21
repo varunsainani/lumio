@@ -62,6 +62,17 @@ body {
   background: color-mix(in oklab, var(--brand) 26%, transparent);
 }
 
+/* Tailwind v4 preflight no longer sets a pointer cursor on buttons. Restore it
+   for all interactive controls across the app. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled),
+  summary,
+  label[for] {
+    cursor: pointer;
+  }
+}
+
 /* Thin, themed scrollbars */
 * {
   scrollbar-width: thin;
