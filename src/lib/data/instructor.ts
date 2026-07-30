@@ -1,6 +1,13 @@
 import { desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { categories, courses, type Level } from "@/db/schema";
+import {
+  categories,
+  courses,
+  enrollments,
+  lessons,
+  sections,
+  type Level,
+} from "@/db/schema";
 
 export type InstructorCourse = {
   id: string;
@@ -13,12 +20,12 @@ export type InstructorCourse = {
   lessonCount: number;
 };
 
-const studentCountSql = sql<number>`(select count(*)::int from enrollments e where e.course_id = ${courses.id})`;
-const lessonCountSql = sql<number>`(select count(*)::int from lessons l join sections s on l.section_id = s.id where s.course_id = ${courses.id})`;
-
 export async function getInstructorCourses(
   userId: string,
 ): Promise<InstructorCourse[]> {
+  // Left-join the child tables and count distinct rows. Correlated subqueries
+  // that interpolate `courses.id` render the column unqualified in the select
+  // context, which is ambiguous inside a joined subquery, so we aggregate here.
   const rows = await db
     .select({
       id: courses.id,
@@ -27,11 +34,15 @@ export async function getInstructorCourses(
       published: courses.published,
       priceCents: courses.priceCents,
       level: courses.level,
-      studentCount: studentCountSql,
-      lessonCount: lessonCountSql,
+      studentCount: sql<number>`count(distinct ${enrollments.id})::int`,
+      lessonCount: sql<number>`count(distinct ${lessons.id})::int`,
     })
     .from(courses)
+    .leftJoin(enrollments, eq(enrollments.courseId, courses.id))
+    .leftJoin(sections, eq(sections.courseId, courses.id))
+    .leftJoin(lessons, eq(lessons.sectionId, sections.id))
     .where(eq(courses.instructorId, userId))
+    .groupBy(courses.id)
     .orderBy(desc(courses.updatedAt));
 
   return rows.map((r) => ({
