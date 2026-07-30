@@ -143,15 +143,23 @@ export type CategoryWithCount = {
 };
 
 export async function getCategoriesWithCounts(): Promise<CategoryWithCount[]> {
+  // Left join published courses and count distinct. A correlated subquery would
+  // interpolate categories.id unqualified in this single-table select, binding
+  // to courses.id inside the subquery and always counting 0.
   const rows = await db
     .select({
       id: categories.id,
       slug: categories.slug,
       name: categories.name,
       icon: categories.icon,
-      courseCount: sql<number>`(select count(*)::int from courses c where c.category_id = ${categories.id} and c.published = true)`,
+      courseCount: sql<number>`count(distinct ${courses.id})::int`,
     })
     .from(categories)
+    .leftJoin(
+      courses,
+      and(eq(courses.categoryId, categories.id), eq(courses.published, true)),
+    )
+    .groupBy(categories.id)
     .orderBy(categories.sortOrder);
 
   return rows.map((r) => ({ ...r, courseCount: Number(r.courseCount ?? 0) }));

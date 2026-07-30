@@ -1,6 +1,12 @@
-import { desc, ilike, or, sql } from "drizzle-orm";
+import { desc, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { categories, courses, users, type Role } from "@/db/schema";
+import {
+  categories,
+  courses,
+  enrollments,
+  users,
+  type Role,
+} from "@/db/schema";
 
 export type PlatformOverview = {
   users: number;
@@ -60,11 +66,14 @@ export async function listUsers(search?: string): Promise<AdminUser[]> {
       email: users.email,
       role: users.role,
       createdAt: users.createdAt,
-      enrolledCount: sql<number>`(select count(*)::int from enrollments e where e.user_id = ${users.id})`,
-      courseCount: sql<number>`(select count(*)::int from courses c where c.instructor_id = ${users.id})`,
+      enrolledCount: sql<number>`count(distinct ${enrollments.id})::int`,
+      courseCount: sql<number>`count(distinct ${courses.id})::int`,
     })
     .from(users)
+    .leftJoin(enrollments, eq(enrollments.userId, users.id))
+    .leftJoin(courses, eq(courses.instructorId, users.id))
     .where(match)
+    .groupBy(users.id)
     .orderBy(desc(users.createdAt))
     .limit(100);
 
@@ -147,9 +156,11 @@ export async function listCategoriesWithCounts(): Promise<AdminCategory[]> {
       name: categories.name,
       icon: categories.icon,
       sortOrder: categories.sortOrder,
-      courseCount: sql<number>`(select count(*)::int from courses c where c.category_id = ${categories.id})`,
+      courseCount: sql<number>`count(distinct ${courses.id})::int`,
     })
     .from(categories)
+    .leftJoin(courses, eq(courses.categoryId, categories.id))
+    .groupBy(categories.id)
     .orderBy(categories.sortOrder, categories.name);
 
   return rows.map((r) => ({
