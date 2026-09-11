@@ -43,7 +43,7 @@ class GroqProvider implements LLMProvider {
   async complete(messages: ChatMessage[], opts: CompleteOptions = {}) {
     const key = process.env.GROQ_API_KEY;
     if (!key) throw new Error("GROQ_API_KEY is not set");
-    const model = process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile";
+    const model = process.env.GROQ_MODEL ?? "openai/gpt-oss-120b";
     const data = (await fetchJson(
       "https://api.groq.com/openai/v1/chat/completions",
       {
